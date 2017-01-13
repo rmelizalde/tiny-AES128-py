@@ -330,20 +330,14 @@ def InvCipher():
   AddRoundKey(0)
 
 
-def BlockCopy(output, input):
-  for i in range(0, KEYLEN):
-    output[i] = input[i]
-
-
 """
 Public functions:
 """
 def AES128_ECB_encrypt(input, key, output):
   #Copy input to output, and work in-memory on output
-  BlockCopy(output, input)
   for i in range(0,4):
     for j in range(0, 4):
-      state[i][j] = output[4*i + j]
+      state[i][j] = input[4*i + j]
 
   Key = key
   KeyExpansion()
@@ -356,10 +350,9 @@ def AES128_ECB_encrypt(input, key, output):
 
 def AES128_ECB_decrypt(input, key, output):
   #Copy input to output, and work in-memory on output
-  BlockCopy(output, input)
   for i in range(0,4):
     for j in range(0, 4):
-      state[i][j] = output[4*i + j]
+      state[i][j] = input[4*i + j]
 
   #The KeyExpansion routine must be called before encryption.
   global Key
@@ -379,8 +372,6 @@ def XorWithIv(buf):
 
 def AES128_CBC_encrypt_buffer(output, input, length, key, iv):
   remainders = length % KEYLEN #Remaining bytes in the last non-full block
-
-  BlockCopy(output, input)
 
   #Skip the key expansion if key is passed as 0
   if 0 != key:
@@ -407,11 +398,10 @@ def AES128_CBC_encrypt_buffer(output, input, length, key, iv):
     output[i:] = tmpOut
 
   if remainders != 0: #NOT TESTED
-    BlockCopy(output, input)
-    memset(output + remainders, 0, KEYLEN - remainders) #add 0-padding
+    output[remainders:] = [0] * (KEYLEN - remainders) #add 0-padding
     for i in range(0,4):
       for j in range(0, 4):
-        state[i][j] = output[4*i + j]
+        state[i][j] = input[4*i + j]
     Cipher()
 
 
@@ -419,8 +409,6 @@ def AES128_CBC_encrypt_buffer(output, input, length, key, iv):
 def AES128_CBC_decrypt_buffer(output, input, length, key, iv):
 
   remainders = length % KEYLEN #Remaining bytes in the last non-full block
-
-  BlockCopy(output, input)
 
   #Skip the key expansion if key is passed as 0
   if 0 != key:
@@ -433,13 +421,11 @@ def AES128_CBC_decrypt_buffer(output, input, length, key, iv):
     global Iv
     Iv = iv
 
+  tmp = [0] * 16
   for i in range(0, length, KEYLEN):
-    tmp = output[i:]
-    BlockCopy(tmp, input)
-    output[i:] = tmp
     for j in range(0,4):
       for k in range(0, 4):
-        state[j][k] = tmp[4*j + k]
+        state[j][k] = input[4*j + k]
     InvCipher()
     for j in range(0, 4):
       for k in range (0, 4):
@@ -450,9 +436,7 @@ def AES128_CBC_decrypt_buffer(output, input, length, key, iv):
     input = input[KEYLEN:]
 
   if remainders != 0: #REVIEW, NOT TESTED!!
-    BlockCopy(output, input)
-    for i in range (0, KEYLEN - remainders):
-        output.append(0) ##add 0-padding
+    output[remainders:] = [0] * (KEYLEN - remainders) #add 0-padding
     for i in range(0,4):
       for j in range(0, 4):
         state[i][j] = output[4*i + j]
@@ -465,10 +449,9 @@ def AES128_CBC_encrypt_block(output, input, key):
     global Key
     Key = key
     KeyExpansion()
-  BlockCopy(output, input)
   for i in range(0,4):
     for j in range(0, 4):
-      state[i][j] = output[4*i + j]
+      state[i][j] = input[4*i + j]
   Cipher()
   for i in range(0, 4):
     for j in range (0, 4):
@@ -476,7 +459,6 @@ def AES128_CBC_encrypt_block(output, input, key):
 
 def LeftShift1Bit(buffer):
     carry = 0
-
     for i in range(KEYLEN-1, -1, -1):
         cc = carry
         carry = (buffer[i] & 0x80) != 0
@@ -520,6 +502,7 @@ def AES128_CMAC(mac, message, msgLen, key):
             mLast[i] = message[(nrBlocks-1)*KEYLEN + i]
         mLast[remainders] = 0x80
         for i in range(0, KEYLEN - remainders - 1):
+
             mLast[remainders+1+i] = 0
         for i in range(0, KEYLEN):
             mLast[i] ^= K2[i]
